@@ -1,0 +1,16 @@
+[submodule "lib/imgui"]
+	path = lib/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+[submodule "lib/pcapplusplus"]
+	path = lib/pcapplusplus
+	url = https://github.com/seladb/PcapPlusPlus.git
+[submodule "lib/glfw"]
+	path = lib/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "lib/imguifiledialog"]
+	path = lib/imguifiledialog
+	url = https://github.com/aiekick/ImGuiFileDialog.git
+[submodule "lib/json"]
+	path = lib/json
+	url = https://github.com/nlohmann/json.git
