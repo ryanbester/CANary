@@ -4,6 +4,17 @@
 
 #include <ImGuiFileDialog.h>
 
+#include <iostream>
+
+#if defined(WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+
+#include <Windows.h>
+#include <shellscalingapi.h>
+
+#endif
+
 namespace canary::gui {
 
 // TODO: Implement software filter
@@ -66,6 +77,50 @@ namespace canary::gui {
             "10466040",
             "106D4099"
     };
+
+    float gui::get_monitor_scale() {
+        float scale = 1.0f;
+
+#if defined(WIN32)
+        auto primary_monitor = MonitorFromPoint(POINT{0,0}, MONITOR_DEFAULTTOPRIMARY);
+        UINT dpi_x = 0, dpi_y = 0;
+
+        auto result = GetDpiForMonitor(primary_monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y);
+        if (result == S_OK) {
+            scale = static_cast<float>(dpi_x) / 96.0f;
+        } else {
+            std::cout << "Failed to retrieve DPI, defaulting to 100% scaling" << std::endl;
+            scale = 1.0f;
+        }
+#endif
+
+        return scale;
+    }
+
+    void gui::set_scale(ImGuiIO &io, float font_size, float scale_factor) {
+        auto &style = ImGui::GetStyle();
+        style.ScaleAllSizes(scale_factor);
+
+        io.Fonts->Clear();
+        font_normal = io.Fonts->AddFontFromFileTTF("resources/fonts/Roboto-Medium.ttf", font_size * scale_factor);
+        font_monospace = io.Fonts->AddFontFromFileTTF("resources/fonts/ProggyClean.ttf", font_size * scale_factor);
+
+        // Rebuild the font atlas
+        unsigned char *pixels;
+        int width, height;
+        io.Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+        // Upload texture
+        GLuint font_texture;
+        glGenTextures(1, &font_texture);
+        glBindTexture(GL_TEXTURE_2D, font_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        io.Fonts->TexID = font_texture;
+
+        io.DisplayFramebufferScale = ImVec2(scale_factor, scale_factor);
+    }
 
     void gui::render_frame() {
 

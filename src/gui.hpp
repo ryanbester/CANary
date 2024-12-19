@@ -74,6 +74,10 @@ namespace canary::gui {
             ini_file.close();
         }
 
+        static float get_monitor_scale();
+
+        void set_scale(ImGuiIO &io, float font_size, float scale_factor);
+
         void render_frame();
 
     private:
@@ -81,6 +85,9 @@ namespace canary::gui {
         canary::can::packetprovider &m_packet_provider;
         bool m_first_loop = true;
         bool m_first_run;
+
+        ImFont *font_normal;
+        ImFont *font_monospace;
 
         state m_state;
 

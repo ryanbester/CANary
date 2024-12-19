@@ -26,7 +26,15 @@ add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGui
         src/can/packetprovider.hpp
 )
 
+# Copy font resources
+file(COPY lib/imgui/misc/fonts/ProggyClean.ttf DESTINATION ${CMAKE_BINARY_DIR}/resources/fonts)
+file(COPY lib/imgui/misc/fonts/Roboto-Medium.ttf DESTINATION ${CMAKE_BINARY_DIR}/resources/fonts)
+
 target_link_libraries(canary PRIVATE glfw OpenGL::GL ${OPENGL_gl_LIBRARY} nlohmann_json::nlohmann_json)
+
+if (WIN32)
+    target_link_libraries(canary PRIVATE Shcore.lib)
+endif ()
 
 target_include_directories(canary PRIVATE lib/glad/include lib/glfw-3.4/include lib/imgui lib/imguifiledialog)
 target_link_directories(canary PRIVATE lib/nativefiledialog/lib)

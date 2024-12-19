@@ -313,6 +313,9 @@ int main(int argc, char **argv) {
     canary::can::packetprovider provider;
 
     canary::gui::gui gui(win, provider);
+    auto scale = canary::gui::gui::get_monitor_scale();
+    gui.set_scale(io, 13.0f, scale);
+
     provider.add_packet("Test");
 
     while (!glfwWindowShouldClose(win)) {
