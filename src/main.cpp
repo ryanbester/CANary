@@ -15,6 +15,8 @@
 #include "dbc.hpp"
 #include "gui.hpp"
 #include "can/packetprovider.hpp"
+#include "cmd/commanddispatcher.hpp"
+#include "cmd/helpcmd.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -311,12 +313,16 @@ int main(int argc, char **argv) {
     std::unique_ptr<const canary::config::connection> current_connection;
 
     canary::can::packetprovider provider;
+    canary::command::command_dispatcher cmd_dispatcher;
 
-    canary::gui::gui gui(win, provider);
+    canary::gui::gui gui(win, provider, cmd_dispatcher);
     auto scale = canary::gui::gui::get_monitor_scale();
     gui.set_scale(io, 13.0f, scale);
 
     provider.add_packet("Test");
+
+    auto help = std::make_shared<canary::command::help_cmd>();
+    cmd_dispatcher.register_command(help);
 
     while (!glfwWindowShouldClose(win)) {
         ImGui_ImplOpenGL3_NewFrame();

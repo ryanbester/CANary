@@ -24,6 +24,11 @@ add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGui
         src/can/socketcand.hpp
         src/can/packetprovider.cpp
         src/can/packetprovider.hpp
+        src/cmd/commanddispatcher.cpp
+        src/cmd/commanddispatcher.hpp
+        src/cmd/commandbase.hpp
+        src/cmd/helpcmd.cpp
+        src/cmd/helpcmd.hpp
 )
 
 # Copy font resources

@@ -18,6 +18,7 @@
 #include "can/packetprovider.hpp"
 #include "dbc.hpp"
 #include "config.hpp"
+#include "cmd/commanddispatcher.hpp"
 
 namespace canary::gui {
 
@@ -51,24 +52,35 @@ namespace canary::gui {
         int offset = 0;
     };
 
+    struct command_line {
+        char input[256] = {0};
+        int history_pos = -1;
+        std::vector<char *> history;
+    };
+
     struct state {
         std::unordered_map<std::string, bool> open_dialogs;
         std::vector<std::string> file_dialogs;
         dbc_options dbc_opt;
         packet_view_options packet_view_opts;
         canary::dbcfile dbc_file;
-        bool packet_filter_enabled;
+        bool packet_filter_enabled = true;
         search_options search_opts;
         std::unique_ptr<const canary::config::connection> current_connection;
         int connection_mgr_selected_row = -1;
-        int speed =0;
-        int rpm =0;
+        int speed = 0;
+        int rpm = 0;
+
+        command_line cmd_line;
     };
 
     class gui {
     public:
-        gui(GLFWwindow *win, canary::can::packetprovider &packet_provider) : m_win(win),
-                                                                             m_packet_provider(packet_provider) {
+        gui(GLFWwindow *win, canary::can::packetprovider &packet_provider,
+            canary::command::command_dispatcher &command_dispatcher)
+                : m_win(win),
+                  m_packet_provider(packet_provider),
+                  m_command_dispatcher(command_dispatcher) {
             std::ifstream ini_file("imgui.ini");
             m_first_run = !ini_file.good();
             ini_file.close();
@@ -83,6 +95,7 @@ namespace canary::gui {
     private:
         GLFWwindow *m_win;
         canary::can::packetprovider &m_packet_provider;
+        canary::command::command_dispatcher &m_command_dispatcher;
         bool m_first_loop = true;
         bool m_first_run;
 
@@ -116,6 +129,8 @@ namespace canary::gui {
         void show_gauges();
 
         void show_tools();
+
+        void show_command_line();
     };
 
 }
