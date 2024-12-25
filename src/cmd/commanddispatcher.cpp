@@ -11,7 +11,7 @@ namespace canary::command {
 
         if (!m_commands.contains(parsed.cmd_name)) {
             // No command with that name
-            m_out.warn("Command not found: {}", parsed.cmd_name);
+            m_out.error("Command not found: {}", parsed.cmd_name);
             return 0;
         }
 
@@ -20,7 +20,7 @@ namespace canary::command {
         auto valid_args = cmd->get_args();
         for (const auto &arg : parsed.args) {
             if (!valid_args.contains(arg)) {
-                m_out.warn("Unknown argument: {}", arg);
+                m_out.error("Unknown argument: {}", arg);
                 return 0;
             }
         }
@@ -28,7 +28,7 @@ namespace canary::command {
         auto valid_opts = cmd->get_opts();
         for (const auto &opt : parsed.options) {
             if (!valid_opts.contains(opt.first)) {
-                m_out.warn("Unknown option: {}", opt.first);
+                m_out.error("Unknown option: {}", opt.first);
                 return 0;
             }
         }

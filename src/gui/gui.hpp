@@ -8,17 +8,17 @@
 #include <unordered_map>
 #include <map>
 
-#include "main.hpp"
+#include "../main.hpp"
 
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
-#include <imgui.h>
-#include <imgui_internal.h>
+#include "imgui.h"
+#include "imgui_internal.h"
 
-#include "can/packetprovider.hpp"
-#include "dbc.hpp"
-#include "config.hpp"
-#include "cmd/commanddispatcher.hpp"
+#include "../can/packetprovider.hpp"
+#include "../dbc.hpp"
+#include "../config.hpp"
+#include "../cmd/commanddispatcher.hpp"
 
 namespace canary::gui {
 
@@ -52,12 +52,6 @@ namespace canary::gui {
         int offset = 0;
     };
 
-    struct command_line {
-        char input[256] = {0};
-        int history_pos = -1;
-        std::vector<char *> history;
-    };
-
     struct state {
         std::unordered_map<std::string, bool> open_dialogs;
         std::vector<std::string> file_dialogs;
@@ -70,12 +64,21 @@ namespace canary::gui {
         int connection_mgr_selected_row = -1;
         int speed = 0;
         int rpm = 0;
-
-        command_line cmd_line;
     };
 
     class gui {
     public:
+        GLFWwindow *m_win;
+        canary::can::packetprovider &m_packet_provider;
+        canary::command::command_dispatcher &m_command_dispatcher;
+        bool m_first_loop = true;
+        bool m_first_run;
+
+        ImFont *font_normal;
+        ImFont *font_monospace;
+
+        state m_state;
+
         gui(GLFWwindow *win, canary::can::packetprovider &packet_provider,
             canary::command::command_dispatcher &command_dispatcher)
                 : m_win(win),
@@ -93,17 +96,6 @@ namespace canary::gui {
         void render_frame();
 
     private:
-        GLFWwindow *m_win;
-        canary::can::packetprovider &m_packet_provider;
-        canary::command::command_dispatcher &m_command_dispatcher;
-        bool m_first_loop = true;
-        bool m_first_run;
-
-        ImFont *font_normal;
-        ImFont *font_monospace;
-
-        state m_state;
-
         ImVec2 render_menu_bar();
 
         void setup_docking(const ImVec2 menu_bar_size);
@@ -129,8 +121,6 @@ namespace canary::gui {
         void show_gauges();
 
         void show_tools();
-
-        void show_command_line();
     };
 
 }

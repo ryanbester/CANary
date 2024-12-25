@@ -2,9 +2,9 @@
 
 #include "gui.hpp"
 
-#include <ImGuiFileDialog.h>
+#include "ImGuiFileDialog.h"
 
-#include "cmd/commanddispatcher.hpp"
+#include "cmdline.hpp"
 
 #include <iostream>
 
@@ -13,7 +13,7 @@
 #define NOMINMAX
 
 #include <Windows.h>
-#include <shellscalingapi.h>
+#include <ShellScalingApi.h>
 
 #endif
 
@@ -84,7 +84,7 @@ namespace canary::gui {
         float scale = 1.0f;
 
 #if defined(WIN32)
-        auto primary_monitor = MonitorFromPoint(POINT{0,0}, MONITOR_DEFAULTTOPRIMARY);
+        auto primary_monitor = MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
         UINT dpi_x = 0, dpi_y = 0;
 
         auto result = GetDpiForMonitor(primary_monitor, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y);
@@ -142,7 +142,8 @@ namespace canary::gui {
         show_conn_mgr_edit_dlg();
         show_gauges();
         show_tools();
-        show_command_line();
+
+        cmdline::show_command_line(*this);
 
         m_first_loop = false;
     }
@@ -538,7 +539,8 @@ namespace canary::gui {
 
                     //std::lock_guard<std::mutex> lock(packets_mutex);
                     for (const auto &received_packet: m_packet_provider.get_received_packets()) {
-                        for (auto term = m_state.search_opts.search_start; term <= m_state.search_opts.search_end; term++) {
+                        for (auto term = m_state.search_opts.search_start;
+                             term <= m_state.search_opts.search_end; term++) {
                             std::stringstream hex_str;
                             hex_str << std::hex << term;
 
@@ -602,7 +604,8 @@ namespace canary::gui {
                 for (auto &search_2_id: m_state.search_opts.search_2_ids) {
                     bool found(false);
 
-                    auto it = std::find_if(m_state.search_opts.search_1_ids.begin(), m_state.search_opts.search_1_ids.end(),
+                    auto it = std::find_if(m_state.search_opts.search_1_ids.begin(),
+                                           m_state.search_opts.search_1_ids.end(),
                                            [&search_2_id](const std::tuple<std::string, std::string> &e) {
                                                return std::get<0>(e) == get<0>(search_2_id);
                                            });
@@ -785,80 +788,5 @@ namespace canary::gui {
             ImGui::Button("Enable Driver Heated Seats");
         }
         ImGui::End();
-    }
-
-    void gui::show_command_line() {
-        ImGui::Begin("Command Line");
-        {
-            if (ImGui::BeginChild("CommandLineScrollingRegion", ImVec2(ImGui::GetWindowWidth(),
-                                                                       ImGui::GetWindowHeight() - 60))) {
-                ImGui::PushFont(font_monospace);
-                for (const auto &line: m_command_dispatcher.get_command_line().get_lines()) {
-                    ImGui::TextUnformatted(line.c_str());
-                }
-                ImGui::PopFont();
-            }
-            ImGui::EndChild();
-
-            auto padding = ImGui::GetStyle().WindowPadding;
-
-            auto input_text_flags = ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_EscapeClearsAll |
-                                    ImGuiInputTextFlags_CallbackCompletion | ImGuiInputTextFlags_CallbackHistory;
-            ImGui::PushItemWidth(-padding.x);
-
-            ImGui::SetCursorPosY(ImGui::GetWindowSize().y - 30);
-
-            if (ImGui::InputText("##Command", m_state.cmd_line.input, IM_ARRAYSIZE(m_state.cmd_line.input),
-                                 input_text_flags,
-                                 [](ImGuiInputTextCallbackData *data) -> int {
-                                     auto this_var = (gui *) data->UserData;
-
-                                     switch (data->EventFlag) {
-
-                                         case ImGuiInputTextFlags_CallbackCompletion:
-                                             std::cout << "Callback completion" << std::endl;
-                                             break;
-                                         case ImGuiInputTextFlags_CallbackHistory:
-                                             int &history_pos = this_var->m_state.cmd_line.history_pos;
-                                             const int prev_history_pos = history_pos;
-
-                                             auto &history = this_var->m_state.cmd_line.history;
-
-                                             if (data->EventKey == ImGuiKey_UpArrow) {
-                                                 if (history_pos == -1) {
-                                                     // New line; set to end of history
-                                                     history_pos = history.size() - 1;
-                                                 } else if (history_pos > 0) {
-                                                     // Keep iterating back through history
-                                                     history_pos--;
-                                                 }
-                                             } else if (data->EventKey == ImGuiKey_DownArrow) {
-                                                 if (history_pos != -1) {
-                                                     if (++history_pos >=
-                                                         history.size()) {
-                                                         history_pos = -1;
-                                                     }
-                                                 }
-                                             }
-
-                                             if (prev_history_pos != history_pos) {
-                                                 const char *history_str = (history_pos >= 0)
-                                                                           ? history[history_pos]
-                                                                           : "";
-                                                 data->DeleteChars(0, data->BufTextLen);
-                                                 data->InsertChars(0, history_str);
-                                             }
-
-                                             break;
-                                     }
-                                     return 0;
-                                 }, this)) {
-
-                m_state.cmd_line.history.push_back(strdup(m_state.cmd_line.input));
-                m_command_dispatcher.execute_command(m_state.cmd_line.input);
-            }
-
-            ImGui::End();
-        }
     }
 }
