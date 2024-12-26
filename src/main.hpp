@@ -13,9 +13,6 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui_internal.h>
 
-#include <unistd.h>
-#include <arpa/inet.h>
-
 #include <ImGuiFileDialog.h>
 
 void draw_gauge(const char *label, float value, float min_value, float max_value, ImVec2 centre, float radius);

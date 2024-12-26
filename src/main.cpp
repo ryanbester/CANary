@@ -1,24 +1,32 @@
 // Copyright (C) 2024 Ryan Bester
 
 #include <iostream>
+#include <memory>
 #include <vector>
 #include <mutex>
 #include <atomic>
 #include <thread>
 #include <cmath>
-#include <sstream>
-#include <condition_variable>
-#include <algorithm>
 
 #include "main.hpp"
 #include "config.hpp"
 #include "dbc.hpp"
-#include "gui.hpp"
+#include "gui/gui.hpp"
 #include "can/packetprovider.hpp"
 #include "cmd/commanddispatcher.hpp"
 #include "cmd/helpcmd.hpp"
 
 #include <nlohmann/json.hpp>
+
+#include "socket.hpp"
+
+
+#if defined(WIN32)
+#include <io.h>
+#else
+#include <unistd.h>
+#include <arpa/inet.h>
+#endif
 
 #define SOCKETCAND_PORT 29536
 #define SOCKETCAND_IP "192.168.0.31"
@@ -35,7 +43,6 @@ std::condition_variable exit_status;
 int speed = 0;
 
 bool paused(false);
-
 
 
 void draw_gauge(const char *label, float value, float min_value, float max_value, ImVec2 centre, float radius) {
@@ -87,50 +94,20 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
 }
 
 void listen_for_packets() {
-    int sockfd;
-    struct sockaddr_in serv_addr;
-    char buffer[1024];
+    char buffer[1024] = {0};
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-        error("Error opening socket");
-        return;
-    }
+    canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
+    socketcand.set_error_handler([](const std::string &msg) {
+        std::cout << "Error: " << msg << std::endl;
+    });
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SOCKETCAND_PORT);
-
-    if (inet_pton(AF_INET, SOCKETCAND_IP, &serv_addr.sin_addr) <= 0) {
-        error("Invalid address/address not supported");
-        return;
-    }
-
-    if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        error("Connection failed");
+    int connect_res = socketcand.connect();
+    if (connect_res != 0) {
+        std::cout << "Error connecting to socketcand" << std::endl;
         return;
     }
 
     std::cout << "Connected to socketcand" << std::endl;
-
-    memset(buffer, 0, sizeof(buffer));
-    ssize_t n = read(sockfd, buffer, sizeof(buffer) - 1);
-    if (n < 0) {
-        error("Error reading from socket");
-    } else if (n == 0) {
-        std::cerr << "Connection closed by socketcand" << std::endl;
-    }
-    std::cout << "Received: " << buffer << std::endl;
-
-    auto init_msg = std::stringstream();
-    init_msg << "< open " << SOCKETCAND_INTERFACE << " >\n";
-    send(sockfd, init_msg.str().c_str(), strlen(init_msg.str().c_str()), 0);
-
-    std::cout << "Initialisation command sent: " << init_msg.str();
-
-    const char *rawmode_msg = "< rawmode >\n";
-    send(sockfd, rawmode_msg, strlen(rawmode_msg), 0);
-
-    std::cout << "Initialisation command sent: " << rawmode_msg;
 
     is_running = true;
     int i = 0;
@@ -140,17 +117,17 @@ void listen_for_packets() {
         if (i % 200 == 0) {
             if (flag) {
                 const char *pid_rpm_msg = "< send 7df 8 02 01 0c 00 00 00 00 00 >\n";
-                send(sockfd, pid_rpm_msg, strlen(pid_rpm_msg), 0);
+                socketcand.send(pid_rpm_msg, strlen(pid_rpm_msg));
             } else {
                 const char *pid_speed_msg = "< send 7df 8 02 01 0d 00 00 00 00 00 >\n";
-                send(sockfd, pid_speed_msg, strlen(pid_speed_msg), 0);
+                socketcand.send(pid_speed_msg, strlen(pid_speed_msg));
             }
             flag = !flag;
 
         }
 
         memset(buffer, 0, sizeof(buffer));
-        n = read(sockfd, buffer, sizeof(buffer) - 1);
+        int n = socketcand.recv(buffer, sizeof(buffer) - 1);
         if (n < 0) {
             if (is_running) error("Error reading from socket");
             break;
@@ -211,7 +188,7 @@ void listen_for_packets() {
         }
     }
 
-    close(sockfd);
+    socketcand.close();
 
     exit_status.notify_one();
 }

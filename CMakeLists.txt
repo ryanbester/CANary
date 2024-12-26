@@ -31,6 +31,8 @@ add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGui
         src/cmd/helpcmd.hpp
         src/gui/cmdline.cpp
         src/gui/cmdline.hpp
+        src/socket.cpp
+        src/socket.hpp
 )
 
 # Copy font resources
@@ -40,7 +42,7 @@ file(COPY lib/imgui/misc/fonts/Roboto-Medium.ttf DESTINATION ${CMAKE_BINARY_DIR}
 target_link_libraries(canary PRIVATE glfw OpenGL::GL ${OPENGL_gl_LIBRARY} nlohmann_json::nlohmann_json)
 
 if (WIN32)
-    target_link_libraries(canary PRIVATE Shcore.lib)
+    target_link_libraries(canary PRIVATE Shcore.lib ws2_32.lib)
 endif ()
 
 target_include_directories(canary PRIVATE lib/glad/include lib/glfw-3.4/include lib/imgui lib/imguifiledialog)
