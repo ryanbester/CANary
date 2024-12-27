@@ -11,6 +11,13 @@ namespace canary {
 
     void canary::config::config_loader::load_config() {
         std::ifstream i(config_loader::FILENAME);
+        if (i.fail()) {
+            // File doesn't exist
+            config_loader::app_config = {};
+            save_config();
+            return;
+        }
+
         auto data = nlohmann::json::parse(i);
         config_loader::app_config = data.template get<canary::config::config>();
         i.close();
