@@ -22,10 +22,14 @@
 
 
 #if defined(WIN32)
+
 #include <io.h>
+
 #else
+
 #include <unistd.h>
 #include <arpa/inet.h>
+
 #endif
 
 #define SOCKETCAND_PORT 29536
@@ -93,10 +97,11 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
     return res;
 }
 
+canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
+
 void listen_for_packets() {
     char buffer[1024] = {0};
 
-    canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
     socketcand.set_error_handler([](const std::string &msg) {
         std::cout << "Error: " << msg << std::endl;
     });
@@ -117,13 +122,24 @@ void listen_for_packets() {
         if (i % 200 == 0) {
             if (flag) {
                 const char *pid_rpm_msg = "< send 7df 8 02 01 0c 00 00 00 00 00 >\n";
-                socketcand.send(pid_rpm_msg, strlen(pid_rpm_msg));
+                socketcand.send_when_ready(pid_rpm_msg, strlen(pid_rpm_msg));
             } else {
                 const char *pid_speed_msg = "< send 7df 8 02 01 0d 00 00 00 00 00 >\n";
-                socketcand.send(pid_speed_msg, strlen(pid_speed_msg));
+                socketcand.send_when_ready(pid_speed_msg, strlen(pid_speed_msg));
             }
             flag = !flag;
 
+        }
+
+        bool read, write = false;
+        int activity = socketcand.select(false, read, write);
+        if (activity == 0) {
+            // No activity
+            continue;
+        }
+
+        if (!read) {
+            continue;
         }
 
         memset(buffer, 0, sizeof(buffer));
@@ -317,6 +333,11 @@ int main(int argc, char **argv) {
 
         glfwSwapBuffers(win);
         glfwPollEvents();
+    }
+
+    // Force close if still in connection phase
+    if (!socketcand.m_connected) {
+        socketcand.close();
     }
 
     if (is_running) {

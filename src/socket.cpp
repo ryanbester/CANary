@@ -7,13 +7,18 @@
 #include <sstream>
 
 #if defined(WIN32)
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #endif
+
+#include "config.hpp"
 
 namespace canary {
     int socket::connect() {
@@ -44,6 +49,10 @@ namespace canary {
         }
 #endif
 
+        if (APP_CONFIG.conn_opts.non_blocking) {
+            set_non_blocking();
+        }
+
         memset(&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
         serv_addr.sin_port = htons(m_port);
@@ -56,17 +65,25 @@ namespace canary {
         int res = ::connect(m_fd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
 #if defined(WIN32)
         if (res == SOCKET_ERROR) {
-            if (m_error_handler)
-                m_error_handler(std::format("connect: Connection to the server failed. Code: {}", WSAGetLastError()));
-            cleanup();
-            return 1;
+            int err = WSAGetLastError();
+            if (err != WSAEWOULDBLOCK) {
+                if (m_error_handler)
+                    m_error_handler(std::format("connect: Connection to the server failed. Code: {}", err));
+                cleanup();
+                return 1;
+            }
+
         }
 #else
         if (res < 0) {
-            if (m_error_handler) m_error_handler("Connection failed");
-            return 1;
+            if (errno != EINPROGRESS) {
+                if (m_error_handler) m_error_handler("Connection failed");
+                return 1;
+            }
         }
 #endif
+
+        m_connected = true;
 
         return on_connect();
     }
@@ -102,16 +119,120 @@ namespace canary {
         return n;
     }
 
+    int socket::recv_when_ready(char *buf, int len, int cooldown) {
+        if (cooldown == -1) {
+            cooldown = APP_CONFIG.conn_opts.cooldown;
+        }
+
+        bool read = false, write = false;
+        while (!read) {
+            select(false, read, write);
+
+            int optval;
+            int optlen = sizeof(optval);
+            if (getsockopt(m_fd, SOL_SOCKET, SO_ERROR, (char *) &optval, &optlen) < 0) {
+                if (m_error_handler) m_error_handler(std::format("recv_when_ready: getsockopt failed with error: {}", WSAGetLastError()));
+                return false;
+            }
+            if (optval != 0) {
+                // Connection failed
+                if (m_error_handler) m_error_handler(std::format("recv_when_ready: Connect failed with error: {}", optval));
+                return false;
+            }
+
+            if (read) {
+                break;
+            }
+
+#if defined(WIN32)
+            Sleep(cooldown);
+#else
+            usleep(cooldown * 1000);
+#endif
+        }
+
+        return recv(buf, len);
+    }
+
+    int socket::send_when_ready(const char *buf, int len, int cooldown) {
+        if (cooldown == -1) {
+            cooldown = APP_CONFIG.conn_opts.cooldown;
+        }
+
+        bool read = false, write = false;
+        while (!write) {
+            select(true, read, write);
+            if (write) {
+                break;
+            }
+
+#if defined(WIN32)
+            Sleep(cooldown);
+#else
+            usleep(cooldown * 1000);
+#endif
+        }
+
+        return send(buf, len);
+    }
+
+    int socket::select(bool want_write, bool &read, bool &write) {
+        fd_set read_fds, write_fds;
+        FD_ZERO(&read_fds);
+        FD_ZERO(&write_fds);
+
+        FD_SET(m_fd, &read_fds);
+        if (want_write) FD_SET(m_fd, &write_fds);
+
+        struct timeval timeout;
+        timeout.tv_sec = APP_CONFIG.conn_opts.timeout;
+        timeout.tv_usec = 0;
+
+        int activity = ::select(m_fd + 1, &read_fds, &write_fds, nullptr, &timeout);
+        if (activity < 0) {
+            if (m_error_handler) m_error_handler("select: Error in select");
+            return activity;
+        }
+
+        if (activity == 0) {
+            // No activity detected
+            return activity;
+        }
+
+        read = false;
+        write = false;
+
+        if (FD_ISSET(m_fd, &read_fds)) {
+            read = true;
+        }
+
+        if (FD_ISSET(m_fd, &write_fds)) {
+            write = true;
+        }
+
+        return 1;
+    }
 
     void socket::close() {
         on_close();
 
 #if defined(WIN32)
         closesocket(m_fd);
-        // TODO: call cleanup on every error code path above
         cleanup();
 #else
         ::close(m_fd);
+#endif
+
+        m_connected = false;
+    }
+
+    void socket::set_non_blocking() {
+#if defined(WIN32)
+        u_long mode = 1;
+        ioctlsocket(m_fd, FIONBIO, &mode);
+#else
+        int flags = fcntl(m_fd, F_GETFL, 0);
+        fcntl(m_fd, F_SETFL, flags | O_NONBLOCK);
 #endif
     }
 
@@ -122,10 +243,9 @@ namespace canary {
     }
 
     int socketcand::on_connect() {
-        // Receive hello message
         char buffer[256] = {0};
 
-        int n = recv(buffer, sizeof(buffer) - 1);
+        int n = recv_when_ready(buffer, sizeof(buffer) - 1);
         if (n <= 0) {
             return n;
         }
@@ -133,10 +253,10 @@ namespace canary {
         auto init_msg = std::stringstream();
 
         init_msg << "< open " << m_interface << " >\n";
-        send(init_msg.str().c_str(), strlen(init_msg.str().c_str()));
+        send_when_ready(init_msg.str().c_str(), strlen(init_msg.str().c_str()));
 
         const char *rawmode_msg = "< rawmode >\n";
-        send(rawmode_msg, strlen(rawmode_msg));
+        send_when_ready(rawmode_msg, strlen(rawmode_msg));
 
         return socket::on_connect();
     }

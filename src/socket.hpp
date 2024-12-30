@@ -7,10 +7,14 @@
 #include <utility>
 #include <functional>
 
+#include "config.hpp"
+
 namespace canary {
 
     class socket {
     public:
+        bool m_connected{false};
+
         socket(std::string host, int port) : m_host(std::move(host)), m_port(port) {};
 
         inline void set_error_handler(std::function<void(std::string message)> error_handler) {
@@ -19,9 +23,17 @@ namespace canary {
 
         int connect();
 
+        // Should use recv_when_ready
         int recv(char *buf, int len);
 
+        // Should use send_when_ready
         int send(const char *buf, int len);
+
+        int recv_when_ready(char *buf, int len, int cooldown = -1);
+
+        int send_when_ready(const char *buf, int len, int cooldown = -1);
+
+        int select(bool want_write, bool &read, bool &write);
 
         void close();
 
@@ -36,6 +48,8 @@ namespace canary {
         int m_fd{-1};
 
         std::function<void(std::string message)> m_error_handler{};
+
+        void set_non_blocking();
 
         void cleanup();
     };

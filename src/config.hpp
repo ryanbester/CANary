@@ -18,8 +18,13 @@ namespace canary::config {
 
     struct connection {
         std::string name;
-        std::string type;
-        std::map<std::string, nlohmann::json> params;
+        std::string can_type;
+        std::map<std::string, nlohmann::json> can_params;
+        bool canaryd_enabled;
+        std::string canaryd_host;
+        int canaryd_port;
+    };
+
     struct connection_options {
         bool non_blocking = true;
         int timeout = 5;
@@ -44,10 +49,11 @@ namespace canary::config {
         static void save_config();
     };
 
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::connection, name, type, params)
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::ui_options, open_dialogs);
 
-    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::config, connections)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::connection, name, can_type, can_params, canaryd_enabled,
+                                       canaryd_host, canaryd_port)
+
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::connection_options, non_blocking, timeout, cooldown)
 
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::config, ui_opts, connections, conn_opts)
