@@ -5,6 +5,7 @@
 #include "ImGuiFileDialog.h"
 
 #include "cmdline.hpp"
+#include "connmgr.hpp"
 
 #include <iostream>
 
@@ -142,8 +143,10 @@ namespace canary::gui {
         show_frame_properties();
         show_search();
         show_filter();
-        show_conn_mgr();
-        show_conn_mgr_edit_dlg();
+
+        connmgr::show_conn_mgr(*this);
+        connmgr::show_conn_mgr_edit_dlg(*this);
+
         show_gauges();
         show_tools();
 
@@ -653,98 +656,6 @@ namespace canary::gui {
             }
 
             ImGui::End();
-        }
-    }
-
-    void gui::show_conn_mgr() {
-
-        if (state_at_or_init(m_state.open_dialogs, std::string("connection_mgr"))) {
-            ImGui::Begin("Connection Manager");
-            {
-                if (ImGui::Button("Add")) {
-                    m_state.open_dialogs["conn_mgr_edit"] = true;
-                    m_state.current_connection = nullptr;
-                }
-                ImGui::SameLine();
-                auto cursor_pos = ImGui::GetCursorPos();
-                ImGui::NewLine();
-
-                if (ImGui::BeginTable("ConnectionsTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-                    ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-                    ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch);
-
-                    ImGui::TableHeadersRow();
-
-                    int i = 0;
-                    for (const auto &conn: canary::config::config_loader::app_config.connections) {
-                        ImGui::TableNextRow();
-                        ImGui::TableNextColumn();
-                        bool is_selected = (m_state.connection_mgr_selected_row == i);
-                        if (ImGui::Selectable(conn.name.c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
-                            m_state.connection_mgr_selected_row = (is_selected ? -1 : i);
-                        }
-                        ImGui::TableNextColumn();
-                        ImGui::Text("%s", conn.type.c_str());
-
-                        i++;
-                    }
-
-                    ImGui::EndTable();
-                }
-
-                if (m_state.connection_mgr_selected_row > -1) {
-                    const canary::config::connection &sel_item = canary::config::config_loader::app_config.connections[m_state.connection_mgr_selected_row];
-                    ImGui::Text("Params:");
-
-                    for (const auto &[key, value]: sel_item.params) {
-                        ImGui::Text("%s: %s", key.c_str(), value.dump().c_str());
-                    }
-
-                    ImGui::SetCursorPos(cursor_pos);
-
-                    if (ImGui::Button("Edit")) {
-                        m_state.open_dialogs["conn_mgr_edit"] = true;
-                        m_state.current_connection = std::make_unique<const canary::config::connection>(sel_item);
-                    }
-                    ImGui::SameLine();
-
-                    if (ImGui::Button("Remove")) {
-                        m_state.open_dialogs["conn_mgr_remove"] = true;
-                    }
-                }
-
-                ImGui::SetCursorPosY(ImGui::GetWindowSize().y - ImGui::GetFrameHeightWithSpacing() -
-                                     ImGui::GetStyle().WindowPadding.y);
-
-                ImGui::Button("Connect");
-                ImGui::SameLine();
-                ImGui::Button("Disconnect");
-
-                ImGui::End();
-            }
-        }
-
-    }
-
-    void gui::show_conn_mgr_edit_dlg() {
-        if (state_at_or_init(m_state.open_dialogs, std::string("conn_mgr_edit"))) {
-            ImGui::OpenPopup("ConnMgrEditDlg");
-        }
-        if (ImGui::BeginPopupModal("ConnMgrEditDlg", nullptr)) {
-            if (m_state.current_connection != nullptr) {
-                ImGui::Text("%s", m_state.current_connection->name.c_str());
-
-                for (const auto &[key, value]: m_state.current_connection->params) {
-                    ImGui::Text("%s: %s", key.c_str(), value.dump().c_str());
-                }
-            }
-
-            if (ImGui::Button("No")) {
-                ImGui::CloseCurrentPopup();
-                m_state.open_dialogs["conn_mgr_edit"] = false;
-            }
-
-            ImGui::EndPopup();
         }
     }
 

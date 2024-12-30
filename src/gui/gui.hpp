@@ -60,8 +60,6 @@ namespace canary::gui {
         canary::dbcfile dbc_file;
         bool packet_filter_enabled = true;
         search_options search_opts;
-        std::unique_ptr<const canary::config::connection> current_connection;
-        int connection_mgr_selected_row = -1;
         int speed = 0;
         int rpm = 0;
     };
@@ -119,10 +117,6 @@ namespace canary::gui {
         void show_search();
 
         void show_filter();
-
-        void show_conn_mgr();
-
-        void show_conn_mgr_edit_dlg();
 
         void show_gauges();
 

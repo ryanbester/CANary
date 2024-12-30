@@ -31,6 +31,8 @@ add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGui
         src/cmd/helpcmd.hpp
         src/gui/cmdline.cpp
         src/gui/cmdline.hpp
+        src/gui/connmgr.cpp
+        src/gui/connmgr.hpp
         src/socket.cpp
         src/socket.hpp
 )
