@@ -10,6 +10,7 @@ namespace canary::gui {
     void cmdline::show_command_line(gui &gui) {
         static const ImVec4 COLOR_YELLOW(1.0f, 1.0f, 0.0f, 1.0f);
         static const ImVec4 COLOR_RED(1.0f, 0.0f, 0.0f, 1.0f);
+        static const ImVec4 COLOR_GRAY(0.6f, 0.6f, 0.6f, 1.0f);
 
         ImGui::Begin("Command Line");
         {
@@ -17,7 +18,9 @@ namespace canary::gui {
                                                                        ImGui::GetWindowHeight() - 60))) {
                 ImGui::PushFont(gui.font_monospace);
                 for (const auto &line: gui.m_command_dispatcher.get_command_line().get_lines()) {
-                    if (line.starts_with("[WARN]") && m_state.colored_text) {
+                    if ((line.starts_with(">") || line.starts_with("->")) && m_state.colored_text) {
+                        ImGui::TextColored(COLOR_GRAY, "%s", line.c_str());
+                    } else if (line.starts_with("[WARN]") && m_state.colored_text) {
                         ImGui::TextColored(COLOR_YELLOW, "%s", line.c_str());
                     } else if (line.starts_with("[ERROR]") && m_state.colored_text) {
                         ImGui::TextColored(COLOR_RED, "%s", line.c_str());
@@ -106,6 +109,10 @@ namespace canary::gui {
                 memset(m_state.input, 0, 256);
                 m_state.input_focus = true;
                 m_state.auto_scroll = true;
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
+                m_state.input_focus = true;
             }
 
             if (ImGui::IsMouseClicked(0)) {

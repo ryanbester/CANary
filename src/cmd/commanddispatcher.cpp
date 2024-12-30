@@ -18,7 +18,7 @@ namespace canary::command {
         auto cmd = m_commands[parsed.cmd_name];
 
         auto valid_args = cmd->get_args();
-        for (const auto &arg : parsed.args) {
+        for (const auto &arg: parsed.args) {
             if (!valid_args.contains(arg)) {
                 m_out.error("Unknown argument: {}", arg);
                 return 0;
@@ -26,14 +26,18 @@ namespace canary::command {
         }
 
         auto valid_opts = cmd->get_opts();
-        for (const auto &opt : parsed.options) {
+        for (const auto &opt: parsed.options) {
             if (!valid_opts.contains(opt.first)) {
                 m_out.error("Unknown option: {}", opt.first);
                 return 0;
             }
         }
 
-        return cmd->execute(parsed, m_out);
+        m_out.print("> {}", command_line);
+        int res = cmd->execute(parsed, m_out);
+        m_out.print("-> {}", res);
+
+        return res;
     }
 
     void command_dispatcher::register_command(std::shared_ptr<command_base> command) {
@@ -87,6 +91,12 @@ namespace canary::command {
 
                 if (i + 1 < tokens.size() && !tokens[i + 1].starts_with("-")) {
                     opt_val = tokens[++i];
+                }
+
+                // Remove leading dashes from option name
+                auto opt_pos = opt_name.find_first_not_of('-');
+                if (opt_pos != std::string::npos) {
+                    opt_name.erase(0, opt_pos);
                 }
 
                 result.options[opt_name] = opt_val;
