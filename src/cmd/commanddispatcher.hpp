@@ -55,6 +55,8 @@ namespace canary::command {
 
         [[nodiscard]] const command_line &get_command_line() const;
 
+        [[nodiscard]] std::unordered_map<std::string, std::shared_ptr<command_base>> get_registered_commands() const;
+
     private:
         command_line m_out;
 
@@ -62,8 +64,6 @@ namespace canary::command {
 
         [[nodiscard]] std::string trim(const std::string &cmd_line) const;
     };
-
-
 }
 
 #endif

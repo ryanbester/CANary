@@ -9,6 +9,7 @@
 #include <unordered_set>
 
 namespace canary::command {
+    // Parsed command line
     struct parsed_command {
         std::string cmd_name;
         std::vector<std::string> args;
@@ -23,8 +24,12 @@ namespace canary::command {
 
         [[nodiscard]] virtual const std::string get_name() const = 0;
 
+        [[nodiscard]] virtual const std::string get_description() const = 0;
+
+        // Arguments the command accepts
         [[nodiscard]] virtual const std::unordered_set<std::string> get_args() const = 0;
 
+        // Options the command accepts
         [[nodiscard]] virtual const std::unordered_set<std::string> get_opts() const = 0;
 
         virtual int execute(const parsed_command &args, command_line &out) = 0;

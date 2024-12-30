@@ -112,6 +112,10 @@ namespace canary::command {
         return m_out;
     }
 
+    std::unordered_map<std::string, std::shared_ptr<command_base>> command_dispatcher::get_registered_commands() const {
+        return m_commands;
+    }
+
     const std::vector<std::string> &command_line::get_lines() const {
         return m_lines;
     }
