@@ -293,6 +293,7 @@ int main(int argc, char **argv) {
     canary::command::command_dispatcher cmd_dispatcher;
 
     canary::gui::gui gui(win, provider, cmd_dispatcher);
+    gui.load_options();
     auto scale = canary::gui::gui::get_monitor_scale();
     gui.set_scale(io, 13.0f, scale);
 
@@ -339,6 +340,7 @@ int main(int argc, char **argv) {
     // Remove ImGui ini file if Reset Window Positions options is selected
     if (delete_ini_file) std::remove("imgui.ini");
 
+    gui.save_options();
     canary::config::config_loader::save_config();
 
     return 0;

@@ -80,6 +80,10 @@ namespace canary::gui {
             "106D4099"
     };
 
+    void gui::load_options() {
+        m_state.open_dialogs = APP_CONFIG.ui_opts.open_dialogs;
+    }
+
     float gui::get_monitor_scale() {
         float scale = 1.0f;
 
@@ -788,5 +792,15 @@ namespace canary::gui {
             ImGui::Button("Enable Driver Heated Seats");
         }
         ImGui::End();
+    }
+
+    void gui::save_options() {
+        APP_CONFIG.ui_opts.open_dialogs.clear();
+
+        // Ignore dialogs that are not open
+        for (const auto &open_dialog : m_state.open_dialogs) {
+            if (!open_dialog.second) continue;
+            APP_CONFIG.ui_opts.open_dialogs[open_dialog.first] = open_dialog.second;
+        }
     }
 }

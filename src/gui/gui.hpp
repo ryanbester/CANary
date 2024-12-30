@@ -89,11 +89,17 @@ namespace canary::gui {
             ini_file.close();
         }
 
+        // Loads UI options from config
+        void load_options();
+
         static float get_monitor_scale();
 
         void set_scale(ImGuiIO &io, float font_size, float scale_factor);
 
         void render_frame();
+
+        // Saves UI options to config
+        void save_options();
 
     private:
         ImVec2 render_menu_bar();

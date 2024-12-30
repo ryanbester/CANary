@@ -8,17 +8,29 @@
 
 #include <nlohmann/json.hpp>
 
+#define APP_CONFIG canary::config::config_loader::app_config
+
 namespace canary::config {
+
+    struct ui_options {
+        std::unordered_map<std::string, bool> open_dialogs;
+    };
 
     struct connection {
         std::string name;
         std::string type;
         std::map<std::string, nlohmann::json> params;
+    struct connection_options {
+        bool non_blocking = true;
+        int timeout = 5;
+        int cooldown = 100;
     };
 
     struct config {
     public:
+        ui_options ui_opts;
         std::vector<connection> connections;
+        connection_options conn_opts;
     };
 
     class config_loader {
@@ -33,8 +45,12 @@ namespace canary::config {
     };
 
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::connection, name, type, params)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::ui_options, open_dialogs);
 
     NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::config, connections)
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::connection_options, non_blocking, timeout, cooldown)
+
+    NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(canary::config::config, ui_opts, connections, conn_opts)
 }
 
 #endif
