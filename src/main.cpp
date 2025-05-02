@@ -436,12 +436,21 @@ int main(int argc, char **argv) {
 
     register_commands(cmd_dispatcher);
 
-    int res = 0;
+    int res = 0, i = 0;
+    bool gui_wait{false};
+    int cmd_skip = 0;
     for (const auto &cmd: commands) {
+        if (cmd == "waitforgui") {
+            std::cout << "Waiting for GUI" << std::endl;
+            gui_wait = true;
+            cmd_skip = i + 1;
+            break;
+        }
         res = cmd_dispatcher.execute_command(cmd);
         if (res != 0) {
             break;
         }
+        i++;
     }
 
     for (const auto &line: cmd_dispatcher.get_command_line().get_lines()) {
@@ -449,6 +458,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Commands executed with code: " << res << std::endl;
+    if(gui_wait) std::cout << commands.size() - cmd_skip << " commands waiting for GUI" << std::endl;
 
     if (!no_gui) {
         gui = std::make_shared<canary::gui::gui>(win, provider, cmd_dispatcher);
@@ -458,6 +468,15 @@ int main(int argc, char **argv) {
         gui->set_scale(io, 13.0f, scale);
 
         provider.add_packet("Test");
+
+        if (gui_wait) {
+            for (auto cmd = commands.begin() + cmd_skip; cmd != commands.end(); ++cmd) {
+                res = cmd_dispatcher.execute_command(*cmd);
+                if (res != 0) {
+                    break;
+                }
+            }
+        }
 
         while (!glfwWindowShouldClose(win)) {
             ImGui_ImplOpenGL3_NewFrame();

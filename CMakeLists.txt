@@ -14,16 +14,11 @@ file(GLOB IMGUI_SRC "lib/imgui/*.h" "lib/imgui/*.cpp")
 list(APPEND IMGUI_SRC lib/imgui/backends/imgui_impl_glfw.h lib/imgui/backends/imgui_impl_glfw.cpp lib/imgui/backends/imgui_impl_opengl3.h lib/imgui/backends/imgui_impl_opengl3.cpp)
 
 add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGuiFileDialog.cpp src/main.cpp
-        src/config.cpp
-        src/config.hpp
-        src/dbc.cpp
-        src/dbc.hpp
-        src/gui/gui.cpp
-        src/gui/gui.hpp
         src/can/socketcand.cpp
         src/can/socketcand.hpp
         src/can/packetprovider.cpp
         src/can/packetprovider.hpp
+
         src/cmd/commanddispatcher.cpp
         src/cmd/commanddispatcher.hpp
         src/cmd/commandbase.hpp
@@ -31,16 +26,28 @@ add_executable(canary lib/glad/src/glad.c ${IMGUI_SRC} lib/imguifiledialog/ImGui
         src/cmd/helpcmd.hpp
         src/cmd/conncmd.cpp
         src/cmd/conncmd.hpp
+        src/cmd/opencmd.cpp
+        src/cmd/opencmd.hpp
+        src/cmd/opendbccmd.cpp
+        src/cmd/opendbccmd.hpp
+
         src/gui/cmdline.cpp
         src/gui/cmdline.hpp
         src/gui/connmgr.cpp
         src/gui/connmgr.hpp
         src/gui/gsm.cpp
         src/gui/gsm.hpp
+        src/gui/gui.cpp
+        src/gui/gui.hpp
+
         src/socket.cpp
         src/socket.hpp
         src/conns.cpp
         src/conns.hpp
+        src/config.cpp
+        src/config.hpp
+        src/dbc.cpp
+        src/dbc.hpp
 )
 
 # Copy font resources
