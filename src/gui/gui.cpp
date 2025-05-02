@@ -150,6 +150,7 @@ namespace canary::gui {
 
         show_gauges();
         show_tools();
+        show_frame_frequency();
 
         cmdline::show_command_line(*this);
 
@@ -330,6 +331,7 @@ namespace canary::gui {
     void gui::show_packets() {
         ImGui::Begin("Socketcand Packets");
         {
+            m_state.frame_frequency.clear();
             // FILTERING
             std::vector<int> filtered_indices;
             const auto &packets = m_packet_provider.get_received_packets();
@@ -344,6 +346,9 @@ namespace canary::gui {
                     // Probably < ok > or malformed packet, ignore/*
                     continue;
                 }
+
+                // Frame frequency doesn't care about excluded packets
+                m_state.frame_frequency[std::stoll(parts[2], nullptr, 16)]++;
 
                 if (m_state.packet_filter_enabled) {
                     if (std::find(excluded_ids.begin(), excluded_ids.end(), parts[2]) != excluded_ids.end()) {
@@ -422,46 +427,21 @@ namespace canary::gui {
                         }
 
                         if (!m_state.dbc_file.messages.empty()) {
-//                        if (dbc_file.messages.contains(std::stol(parts[2]))) {
-//                            auto message = dbc_file.messages.at(std::stol(parts[2]));
-//                            ImGui::Text(message.name.c_str());
-//                        } else {
-//                            ImGui::Text("CAN ID not found in DBC file");
-//                        }
-                            bool found(false);
-                            for (const auto &[can_id, message]: m_state.dbc_file.messages) {
-                                // DBC file represents IDs as a decimal, convert here to a hex string
+                            auto dbc_msg = m_state.dbc_file.find_message(parts[2]);
+                            if (dbc_msg) {
                                 std::stringstream stream;
-                                stream << std::hex << can_id;
+                                stream << std::hex << dbc_msg.value().can_id;
                                 std::string can_id_hex(stream.str());
 
-                                // TODO: Cache of found IDs
-                                // TODO: Use dbc_options_first_n variable
-                                // TODO: Skip first character for now, until offset implemented
-                                auto can_id_first_n = can_id_hex.substr(1, 4);
-                                auto to_find_first_n = parts[2].substr(1, 4);
+                                ImGui::Text("Matching CAN ID: 0x%s", can_id_hex.c_str());
+                                ImGui::Text("Packet: %s", dbc_msg.value().name.c_str());
 
-                                std::transform(can_id_first_n.begin(), can_id_first_n.end(), can_id_first_n.begin(),
-                                               ::toupper);
-                                std::transform(to_find_first_n.begin(), to_find_first_n.end(), to_find_first_n.begin(),
-                                               ::toupper);
-
-                                if (can_id_first_n == to_find_first_n) {
-                                    found = true;
-                                    ImGui::Text("Matching CAN ID: 0x%s", can_id_hex.c_str());
-                                    ImGui::Text("Packet: %s", message.name.c_str());
-
-                                    if (is_selected) {
-                                        m_state.packet_view_opts.selected_frame = std::make_pair(message,
-                                                                                                 parts[4].c_str());
-                                    }
-
-                                    break;
+                                if (is_selected) {
+                                    m_state.packet_view_opts.selected_frame = std::make_pair(dbc_msg.value(),
+                                                                                             parts[4].c_str());
                                 }
-                            }
-
-                            if (!found) {
-                                ImGui::Text("CAN ID not found in DBC file");
+                            } else {
+                                ImGui::TextColored(ImVec4(255, 0, 0, 255), "%s", "CAN ID not found in DBC file");
                             }
                         }
 
@@ -697,8 +677,9 @@ namespace canary::gui {
         {
             ImGui::Checkbox("Enable Packet Filter", &m_state.packet_filter_enabled);
 
-            if (ImGui::BeginTable("FilteredPacketsTable", 1, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            if (ImGui::BeginTable("FilteredPacketsTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
                 ImGui::TableSetupColumn("CAN ID", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_WidthStretch);
 
                 ImGui::TableHeadersRow();
 
@@ -706,6 +687,17 @@ namespace canary::gui {
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text("0x%s", id.c_str());
+
+                    std::string message_name;
+                    if (!m_state.dbc_file.messages.empty()) {
+                        auto dbc_msg = m_state.dbc_file.find_message(id);
+                        if (dbc_msg) {
+                            message_name = dbc_msg.value().name;
+                        }
+                    }
+
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%s", message_name.c_str());
                 }
 
                 ImGui::EndTable();
@@ -768,6 +760,51 @@ namespace canary::gui {
         for (const auto &open_dialog: m_state.open_dialogs) {
             if (!open_dialog.second) continue;
             APP_CONFIG.ui_opts.open_dialogs[open_dialog.first] = open_dialog.second;
+        }
+    }
+
+    void gui::show_frame_frequency() {
+        ImGui::Begin("Frame Frequency");
+        {
+            std::vector<std::pair<long long, int>> freq_vector(m_state.frame_frequency.begin(),
+                                                               m_state.frame_frequency.end());
+
+            // Sort descending
+            std::sort(freq_vector.begin(), freq_vector.end(),
+                      [](const std::pair<long long, int> &a, const std::pair<long long, int> &b) {
+                          return a.second > b.second;
+                      });
+
+            for (const auto &[can_id, count]: freq_vector) {
+                std::stringstream can_id_stream;
+                can_id_stream << std::hex << can_id;
+                std::string can_id_hex(can_id_stream.str());
+
+                bool excluded = false;
+                if (m_state.packet_filter_enabled) {
+                    if (std::find(excluded_ids.begin(), excluded_ids.end(), can_id_hex) != excluded_ids.end()) {
+                        excluded = true;
+                    }
+                }
+
+                std::string message_name;
+                if (!m_state.dbc_file.messages.empty()) {
+                    auto dbc_msg = m_state.dbc_file.find_message(can_id_hex);
+                    if (dbc_msg) {
+                        std::stringstream s;
+                        s << "(" << dbc_msg.value().name << ")";
+                        message_name = s.str();
+                    }
+                }
+
+                if (excluded) {
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s: %d %s", can_id_hex.c_str(), count, message_name.c_str());
+                } else {
+                    ImGui::Text("%s: %d %s", can_id_hex.c_str(), count, message_name.c_str());
+                }
+            }
+
+            ImGui::End();
         }
     }
 }

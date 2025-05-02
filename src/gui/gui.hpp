@@ -89,6 +89,7 @@ namespace canary::gui {
         search_options search_opts;
         int speed = 0;
         int rpm = 0;
+        std::unordered_map<long long, int> frame_frequency{};
     };
 
     class gui {
@@ -148,6 +149,8 @@ namespace canary::gui {
         void show_gauges();
 
         void show_tools();
+
+        void show_frame_frequency();
     };
 
 }

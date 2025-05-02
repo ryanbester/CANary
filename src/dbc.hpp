@@ -7,6 +7,7 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <optional>
 
 namespace canary {
     struct dbc_signal {
@@ -44,14 +45,16 @@ namespace canary {
         dbc_message() = default;
 
         dbc_message(long long canId, std::string name, int length, std::string sender) : can_id(canId),
-                                                                                                 name(std::move(name)),
-                                                                                                 length(length),
-                                                                                                 sender(std::move(sender)) {};
+                                                                                         name(std::move(name)),
+                                                                                         length(length),
+                                                                                         sender(std::move(sender)) {};
     };
 
     class dbcfile {
     public:
         std::unordered_map<long long, dbc_message> messages;
+
+        std::optional<dbc_message> find_message(std::string can_id_hex);
     };
 
     class dbcparser {

@@ -5,6 +5,7 @@
 #include "main.hpp"
 
 #include <iostream>
+#include <sstream>
 
 namespace canary {
     dbcfile dbcparser::load_dbc_file(const std::string &file_path) {
@@ -78,6 +79,32 @@ namespace canary {
         }
 
         return dbc;
+    }
+
+    std::optional<dbc_message> dbcfile::find_message(std::string can_id_hex) {
+        for (const auto &[can_id, message]: messages) {
+            // DBC file represents IDs as a decimal, convert here to a hex string
+            std::stringstream stream;
+            stream << std::hex << can_id;
+            std::string dbc_can_id_hex(stream.str());
+
+            // TODO: Cache of found IDs
+            // TODO: Use dbc_options_first_n variable
+            // TODO: Skip first character for now, until offset implemented
+            auto can_id_first_n = dbc_can_id_hex.substr(1, 4);
+            auto to_find_first_n = can_id_hex.substr(1, 4);
+
+            std::transform(can_id_first_n.begin(), can_id_first_n.end(), can_id_first_n.begin(),
+                           ::toupper);
+            std::transform(to_find_first_n.begin(), to_find_first_n.end(), to_find_first_n.begin(),
+                           ::toupper);
+
+            if (can_id_first_n == to_find_first_n) {
+                return message;
+            }
+        }
+
+        return std::nullopt;
     }
 }
 
