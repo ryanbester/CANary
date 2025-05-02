@@ -330,9 +330,6 @@ namespace canary::gui {
     void gui::show_packets() {
         ImGui::Begin("Socketcand Packets");
         {
-            ImGui::Checkbox("Auto scroll", &m_state.packet_view_opts.auto_scroll);
-            ImGui::Checkbox("Pause", &m_state.packet_view_opts.paused);
-
             // FILTERING
             std::vector<int> filtered_indices;
             const auto &packets = m_packet_provider.get_received_packets();
@@ -362,6 +359,22 @@ namespace canary::gui {
                 filtered_indices.push_back(i); // only store index if valid
             }
 
+            ImGui::Checkbox("Auto scroll", &m_state.packet_view_opts.auto_scroll);
+            if (ImGui::Checkbox("Pause", &m_state.packet_view_opts.paused)) {
+                set_paused(m_state.packet_view_opts.paused);
+            }
+
+            std::stringstream replay_btn_text;
+            replay_btn_text << "Replay " << m_state.packet_view_opts.selected.count() << " packets";
+            if (ImGui::Button(replay_btn_text.str().c_str())) {
+                std::vector<std::string> packets_to_replay{};
+                for (int i = m_state.packet_view_opts.selected.start; i <= m_state.packet_view_opts.selected.end; i++) {
+                    const int packet_index = filtered_indices[i];
+                    packets_to_replay.push_back(packets[packet_index]);
+                }
+                replay_packets(packets_to_replay);
+            }
+
             // TABLE
             if (ImGui::BeginTable("PacketTable", 5,
                                   ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
@@ -383,8 +396,7 @@ namespace canary::gui {
                     for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                         const int packet_index = filtered_indices[i];
                         const auto &packet = packets[packet_index];
-                        std::vector<std::string> parts = split_string(packet,
-                                                                      std::string(" "));
+                        std::vector<std::string> parts = split_string(packet, std::string(" "));
 
                         ImGui::PushID(i);
 

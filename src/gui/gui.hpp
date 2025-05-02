@@ -60,6 +60,10 @@ namespace canary::gui {
             start = std::min(a, b);
             end = std::max(a, b);
         }
+
+        int count() const {
+            return (end - start) + 1;
+        }
     };
 
     struct packet_view_options {

@@ -15,6 +15,8 @@
 
 #include <ImGuiFileDialog.h>
 
+void set_paused(bool paused);
+
 void draw_gauge(const char *label, float value, float min_value, float max_value, ImVec2 centre, float radius);
 
 void error(const std::string &msg);
@@ -24,6 +26,8 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
 void init_socket();
 
 void listen_for_packets();
+
+void replay_packets(std::vector<std::string> packets);
 
 std::vector<bool> hexStringToBitArray(const std::string &hex);
 

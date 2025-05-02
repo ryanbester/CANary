@@ -45,11 +45,15 @@ std::atomic<bool> is_running(false);
 std::mutex exit_status_mutex;
 std::condition_variable exit_status;
 
+canary::socketcand *g_socketcand = nullptr;
 
 int speed = 0;
 
-bool paused(false);
+bool g_paused(false);
 
+void set_paused(bool paused) {
+    g_paused = paused;
+}
 
 void draw_gauge(const char *label, float value, float min_value, float max_value, ImVec2 centre, float radius) {
     ImDrawList *draw_list = ImGui::GetWindowDrawList();
@@ -101,6 +105,7 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
 
 void init_socket() {
     canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
+    g_socketcand = &socketcand;
 
     socketcand.set_error_handler([](const std::string &msg) {
         std::cout << "Error: " << msg << std::endl;
@@ -114,33 +119,33 @@ void init_socket() {
 
     std::cout << "Connected to socketcand" << std::endl;
 
-//    std::thread listener_thread(listen_for_packets, socketcand);
-//    canary::connection conn{socketcand, canary::can::packetprovider{}, listener_thread};
+    std::thread listener_thread(listen_for_packets);
+    canary::connection conn{socketcand, canary::can::packetprovider{}, listener_thread};
 }
 
 
-void listen_for_packets(canary::socketcand socketcand) {
+void listen_for_packets() {
     char buffer[1024] = {0};
 
     is_running = true;
     int i = 0;
     bool flag = false;
-    while (is_running && !paused) {
+    while (is_running && !g_paused) {
         i++;
         if (i % 200 == 0) {
             if (flag) {
                 const char *pid_rpm_msg = "< send 7df 8 02 01 0c 00 00 00 00 00 >\n";
-                socketcand.send_when_ready(pid_rpm_msg, strlen(pid_rpm_msg));
+                g_socketcand->send_when_ready(pid_rpm_msg, strlen(pid_rpm_msg));
             } else {
                 const char *pid_speed_msg = "< send 7df 8 02 01 0d 00 00 00 00 00 >\n";
-                socketcand.send_when_ready(pid_speed_msg, strlen(pid_speed_msg));
+                g_socketcand->send_when_ready(pid_speed_msg, strlen(pid_speed_msg));
             }
             flag = !flag;
 
         }
 
         bool read, write = false;
-        int activity = socketcand.select(false, read, write);
+        int activity = g_socketcand->select(false, read, write);
         if (activity == 0) {
             // No activity
             continue;
@@ -151,7 +156,7 @@ void listen_for_packets(canary::socketcand socketcand) {
         }
 
         memset(buffer, 0, sizeof(buffer));
-        int n = socketcand.recv(buffer, sizeof(buffer) - 1);
+        int n = g_socketcand->recv(buffer, sizeof(buffer) - 1);
         if (n < 0) {
             if (is_running) error("Error reading from socket");
             break;
@@ -212,9 +217,25 @@ void listen_for_packets(canary::socketcand socketcand) {
         }
     }
 
-    socketcand.close();
+    g_socketcand->close();
 
     exit_status.notify_one();
+}
+
+void replay_packets(std::vector<std::string> packets) {
+    if (g_socketcand == nullptr) {
+        std::cout << "No connection to replay packets" << std::endl;
+        return;
+    }
+
+    for (const auto &packet: packets) {
+        std::vector<std::string> parts = split_string(packet, std::string(" "));
+
+        std::stringstream to_send;
+        to_send << "< send " << parts[2] << " " << parts[4].length() / 2 << " " << parts[4] << " >";
+
+        g_socketcand->send_when_ready(to_send.str().c_str(), to_send.str().length());
+    }
 }
 
 std::vector<bool> hexStringToBitArray(const std::string &hex) {
