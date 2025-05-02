@@ -400,9 +400,17 @@ namespace canary::gui {
                         ImGui::TableSetColumnIndex(4);
 //                    ImGui::Text("%s", parts[4].c_str());
 
-                        bool is_selected = (m_state.packet_view_opts.selected_row == i);
+                        auto &selected = m_state.packet_view_opts.selected;
+
+                        bool is_selected = selected.contains(i);
                         if (ImGui::Selectable(parts[4].c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
-                            m_state.packet_view_opts.selected_row = (is_selected ? -1 : i);
+                            if (ImGui::GetIO().KeyShift && selected.start != -1) {
+                                selected.set_range(selected.start, i);  // Expand selection
+                                m_state.packet_view_opts.selected_row = i;
+                            } else {
+                                selected.set(i); // Start new selection
+                                m_state.packet_view_opts.selected_row = i;
+                            }
                         }
 
                         if (!m_state.dbc_file.messages.empty()) {

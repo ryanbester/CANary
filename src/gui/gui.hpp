@@ -40,10 +40,33 @@ namespace canary::gui {
         int search_num = 1;
     };
 
+    struct selected_range {
+        int start = -1;
+        int end = -1;
+
+        bool contains(int i) const {
+            return start != -1 && i >= start && i <= end;
+        }
+
+        void clear() {
+            start = end = -1;
+        }
+
+        void set(int i) {
+            start = end = i;
+        }
+
+        void set_range(int a, int b) {
+            start = std::min(a, b);
+            end = std::max(a, b);
+        }
+    };
+
     struct packet_view_options {
         bool auto_scroll;
         bool paused;
         int selected_row;
+        selected_range selected;
         std::pair<dbc_message, std::string> selected_frame;
     };
 
