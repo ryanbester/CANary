@@ -170,17 +170,10 @@ namespace canary::gui {
                 if (ImGui::MenuItem("Create")) {
                 }
                 if (ImGui::MenuItem("Open", "Ctrl+O")) {
-                    std::ifstream file(file_path);
-
-                    std::string line;
-                    while (std::getline(file, line)) {
-                        m_packet_provider.add_packet(line);
-                    }
-
                     IGFD::FileDialogConfig config;
                     config.path = ".";
                     m_state.file_dialogs.emplace_back("ChooseFileDlgKey");
-                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", config);
+                    ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".dat", config);
                 }
                 if (ImGui::MenuItem("Save", "Ctrl+S")) {
                     std::ofstream file(file_path);
@@ -307,6 +300,13 @@ namespace canary::gui {
 
                     if (key == "ChooseDbcFileDlgKey") {
                         m_state.dbc_file = canary::dbcparser::load_dbc_file(filePathName);
+                    } else if (key == "ChooseFileDlgKey") {
+                        std::ifstream file(filePathName);
+
+                        std::string line;
+                        while (std::getline(file, line)) {
+                            m_packet_provider.add_packet(line);
+                        }
                     }
                 }
 
