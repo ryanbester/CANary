@@ -130,8 +130,8 @@ namespace canary {
 
             int optval;
             int optlen = sizeof(optval);
-            if (getsockopt(m_fd, SOL_SOCKET, SO_ERROR, (char *) &optval, &optlen) < 0) {
-                if (m_error_handler) m_error_handler(std::format("recv_when_ready: getsockopt failed with error: {}", WSAGetLastError()));
+            if (getsockopt(m_fd, SOL_SOCKET, SO_ERROR, (char *) &optval, reinterpret_cast<socklen_t *>(&optlen)) < 0) {
+//                if (m_error_handler) m_error_handler(std::format("recv_when_ready: getsockopt failed with error: {}", WSAGetLastError()));
                 return false;
             }
             if (optval != 0) {

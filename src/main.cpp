@@ -45,6 +45,8 @@ std::atomic<bool> is_running(false);
 std::mutex exit_status_mutex;
 std::condition_variable exit_status;
 
+canary::can::packetprovider provider;
+
 canary::socketcand *g_socketcand = nullptr;
 
 int speed = 0;
@@ -104,7 +106,7 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
 }
 
 void init_socket() {
-    canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
+    static canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
     g_socketcand = &socketcand;
 
     socketcand.set_error_handler([](const std::string &msg) {
@@ -120,7 +122,8 @@ void init_socket() {
     std::cout << "Connected to socketcand" << std::endl;
 
     std::thread listener_thread(listen_for_packets);
-    canary::connection conn{socketcand, canary::can::packetprovider{}, listener_thread};
+    canary::connection conn{socketcand, provider, listener_thread};
+    listener_thread.detach();
 }
 
 
@@ -173,6 +176,7 @@ void listen_for_packets() {
             while ((end = partial_buffer.find('>', start)) != std::string::npos) {
                 std::string packet = partial_buffer.substr(start, end - start + 1);
                 received_packets.emplace_back(packet);
+                provider.add_packet(packet);
                 start = end + 1;
 
 //                if (received_packets.size() > 50) {
@@ -231,9 +235,15 @@ void replay_packets(std::vector<std::string> packets) {
     for (const auto &packet: packets) {
         std::vector<std::string> parts = split_string(packet, std::string(" "));
 
-        std::stringstream to_send;
-        to_send << "< send " << parts[2] << " " << parts[4].length() / 2 << " " << parts[4] << " >";
+        std::stringstream formatted;
+        for (size_t i = 0; i < parts[4].size(); i += 2) {
+            formatted << parts[4].substr(i, 2) << " ";
+        }
 
+        std::stringstream to_send;
+        to_send << "< send " << parts[2] << " " << parts[4].length() / 2 << " " << formatted.str() << " >";
+
+        std::cout << "Replaying:  " << to_send.str() << std::endl;
         g_socketcand->send_when_ready(to_send.str().c_str(), to_send.str().length());
     }
 }
@@ -414,7 +424,6 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<const canary::config::connection> current_connection;
 
-    canary::can::packetprovider provider;
     canary::command::command_dispatcher cmd_dispatcher;
 
     register_commands(cmd_dispatcher);

@@ -352,10 +352,6 @@ namespace canary::gui {
                     }
                 }
 
-                if (parts[4].length() / 2 != 8) {
-                    continue;
-                }
-
                 filtered_indices.push_back(i); // only store index if valid
             }
 
