@@ -521,24 +521,41 @@ namespace canary::gui {
             ImGui::Text("Signals:");
 
             for (const auto &signal: frame.first.signals) {
-                if (signal.length == 8) {
-                    // Int8
-                    auto val = extractFromBoolVectorInt(bit_array, signal.start);
-                    auto scaled_val = signal.offset + signal.scale * (float) val;
-                    ImGui::Text("%s: %.2f", signal.name.c_str(), scaled_val);
-                } else if (signal.length == 16) {
-                    // Int16
-                    auto val = extractFromBoolVector(bit_array, signal.start);
+                try {
+                    if (signal.length == 1) {
+                        auto val = bit_array[signal.start + 1];
+                        auto scaled_val = signal.offset + signal.scale * (float) val;
+                        ImGui::Text("%s: %.2f", signal.name.c_str(), scaled_val);
 
-                    if (!signal.little_endian) {
-                        val = swap_endian_16(val);
+                        if (scaled_val == 0) {
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(255, 0, 0, 255), "%s", "(False)");
+                        } else if (scaled_val == 1) {
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(0, 255, 0, 255), "%s", "(True)");
+                        }
+                    } else if (signal.length == 8) {
+                        // Int8
+                        auto val = extractFromBoolVectorInt(bit_array, signal.start);
+                        auto scaled_val = signal.offset + signal.scale * (float) val;
+                        ImGui::Text("%s: %.2f", signal.name.c_str(), scaled_val);
+                    } else if (signal.length == 16) {
+                        // Int16
+                        auto val = extractFromBoolVector(bit_array, signal.start);
+
+                        if (!signal.little_endian) {
+                            val = swap_endian_16(val);
+                        }
+
+                        auto scaled_val = signal.offset + signal.scale * (float) val;
+                        ImGui::Text("%s: %.2f", signal.name.c_str(), scaled_val);
+                    } else {
+                        // Unknown type
+                        ImGui::Text("%s: (Unknown type) of length: %d", signal.name.c_str(), signal.length);
                     }
-
-                    auto scaled_val = signal.offset + signal.scale * (float) val;
-                    ImGui::Text("%s: %.2f", signal.name.c_str(), scaled_val);
-                } else {
-                    // Unknown type
-                    ImGui::Text("%s: (Unknown type)", signal.name.c_str());
+                } catch (const std::exception &ex) {
+                    ImGui::TextColored(ImVec4(255, 0, 0, 255), "%s: Error extracting value: %s", signal.name.c_str(),
+                                       ex.what());
                 }
             }
 
