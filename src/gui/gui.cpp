@@ -333,6 +333,36 @@ namespace canary::gui {
             ImGui::Checkbox("Auto scroll", &m_state.packet_view_opts.auto_scroll);
             ImGui::Checkbox("Pause", &m_state.packet_view_opts.paused);
 
+            // FILTERING
+            std::vector<int> filtered_indices;
+            const auto &packets = m_packet_provider.get_received_packets();
+
+            for (int i = 0; i < static_cast<int>(packets.size()); ++i) {
+                const auto &packet = packets[i];
+
+                std::vector<std::string> parts = split_string(packets[i],
+                                                              std::string(" "));
+
+                if (parts.size() != 6) {
+                    // Probably < ok > or malformed packet, ignore/*
+                    continue;
+                }
+
+                if (m_state.packet_filter_enabled) {
+                    if (std::find(excluded_ids.begin(), excluded_ids.end(), parts[2]) != excluded_ids.end()) {
+                        // Excluded ID, ignore
+                        continue;
+                    }
+                }
+
+                if (parts[4].length() / 2 != 8) {
+                    continue;
+                }
+
+                filtered_indices.push_back(i); // only store index if valid
+            }
+
+            // TABLE
             if (ImGui::BeginTable("PacketTable", 5,
                                   ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
                 ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 50.0f);
@@ -345,120 +375,110 @@ namespace canary::gui {
                 ImGui::TableHeadersRow();
 
                 ImGuiListClipper clipper;
-                clipper.Begin(static_cast<int>(m_packet_provider.get_received_packets().size()));
+                clipper.Begin(static_cast<int>(filtered_indices.size()));
 
 //                std::lock_guard<std::mutex> lock(packets_mutex);
 
-//                while (clipper.Step()) {
-//                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                for (size_t i = 0; i < m_packet_provider.get_received_packets().size(); ++i) {
-                    std::vector<std::string> parts = split_string(m_packet_provider.get_received_packets()[i],
-                                                                  std::string(" "));
-                    if (parts.size() != 6) {
-                        // Probably < ok > or malformed packet, ignore/*
-                        continue;
-                    }
+                while (clipper.Step()) {
+                    for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                        const int packet_index = filtered_indices[i];
+                        const auto &packet = packets[packet_index];
+                        std::vector<std::string> parts = split_string(packet,
+                                                                      std::string(" "));
 
-                    if (m_state.packet_filter_enabled) {
-                        if (std::find(excluded_ids.begin(), excluded_ids.end(), parts[2]) != excluded_ids.end()) {
-                            // Excluded ID, ignore
-                            continue;
-                        }
-                    }
+                        ImGui::PushID(i);
 
-//                    if (parts[4].length() / 2 != 8) {
-//                        continue;
-//                    }
-
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%zu", i + 1);
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", parts[3].c_str());
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("0x%s", parts[2].c_str());
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%zu", parts[4].length() / 2);
-                    ImGui::TableSetColumnIndex(4);
+                        ImGui::TableNextRow();
+                        ImGui::TableSetColumnIndex(0);
+                        ImGui::Text("%zu", i + 1);
+                        ImGui::TableSetColumnIndex(1);
+                        ImGui::Text("%s", parts[3].c_str());
+                        ImGui::TableSetColumnIndex(2);
+                        ImGui::Text("0x%s", parts[2].c_str());
+                        ImGui::TableSetColumnIndex(3);
+                        ImGui::Text("%zu", parts[4].length() / 2);
+                        ImGui::TableSetColumnIndex(4);
 //                    ImGui::Text("%s", parts[4].c_str());
 
-                    bool is_selected = (m_state.packet_view_opts.selected_row == i);
-                    if (ImGui::Selectable(parts[4].c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
-                        m_state.packet_view_opts.selected_row = (is_selected ? -1 : i);
-                    }
+                        bool is_selected = (m_state.packet_view_opts.selected_row == i);
+                        if (ImGui::Selectable(parts[4].c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
+                            m_state.packet_view_opts.selected_row = (is_selected ? -1 : i);
+                        }
 
-                    if (!m_state.dbc_file.messages.empty()) {
+                        if (!m_state.dbc_file.messages.empty()) {
 //                        if (dbc_file.messages.contains(std::stol(parts[2]))) {
 //                            auto message = dbc_file.messages.at(std::stol(parts[2]));
 //                            ImGui::Text(message.name.c_str());
 //                        } else {
 //                            ImGui::Text("CAN ID not found in DBC file");
 //                        }
-                        bool found(false);
-                        for (const auto &[can_id, message]: m_state.dbc_file.messages) {
-                            // DBC file represents IDs as a decimal, convert here to a hex string
-                            std::stringstream stream;
-                            stream << std::hex << can_id;
-                            std::string can_id_hex(stream.str());
+                            bool found(false);
+                            for (const auto &[can_id, message]: m_state.dbc_file.messages) {
+                                // DBC file represents IDs as a decimal, convert here to a hex string
+                                std::stringstream stream;
+                                stream << std::hex << can_id;
+                                std::string can_id_hex(stream.str());
 
-                            // TODO: Cache of found IDs
-                            // TODO: Use dbc_options_first_n variable
-                            // TODO: Skip first character for now, until offset implemented
-                            auto can_id_first_n = can_id_hex.substr(1, 4);
-                            auto to_find_first_n = parts[2].substr(1, 4);
+                                // TODO: Cache of found IDs
+                                // TODO: Use dbc_options_first_n variable
+                                // TODO: Skip first character for now, until offset implemented
+                                auto can_id_first_n = can_id_hex.substr(1, 4);
+                                auto to_find_first_n = parts[2].substr(1, 4);
 
-                            std::transform(can_id_first_n.begin(), can_id_first_n.end(), can_id_first_n.begin(),
-                                           ::toupper);
-                            std::transform(to_find_first_n.begin(), to_find_first_n.end(), to_find_first_n.begin(),
-                                           ::toupper);
+                                std::transform(can_id_first_n.begin(), can_id_first_n.end(), can_id_first_n.begin(),
+                                               ::toupper);
+                                std::transform(to_find_first_n.begin(), to_find_first_n.end(), to_find_first_n.begin(),
+                                               ::toupper);
 
-                            if (can_id_first_n == to_find_first_n) {
-                                found = true;
-                                ImGui::Text("Matching CAN ID: 0x%s", can_id_hex.c_str());
-                                ImGui::Text("Packet: %s", message.name.c_str());
+                                if (can_id_first_n == to_find_first_n) {
+                                    found = true;
+                                    ImGui::Text("Matching CAN ID: 0x%s", can_id_hex.c_str());
+                                    ImGui::Text("Packet: %s", message.name.c_str());
 
-                                if (is_selected) {
-                                    m_state.packet_view_opts.selected_frame = std::make_pair(message, parts[4].c_str());
+                                    if (is_selected) {
+                                        m_state.packet_view_opts.selected_frame = std::make_pair(message,
+                                                                                                 parts[4].c_str());
+                                    }
+
+                                    break;
                                 }
+                            }
 
-                                break;
+                            if (!found) {
+                                ImGui::Text("CAN ID not found in DBC file");
                             }
                         }
 
-                        if (!found) {
-                            ImGui::Text("CAN ID not found in DBC file");
+
+                        if (parts[2] == "102CA040") {
+                            // Engine information
+                            std::vector<bool> bits = hexStringToBitArray(parts[4]);
+
+                            // Engine information
+                            bool engineRunning = bits[14];
+                            ImGui::Text("    %d", engineRunning);
+
+                            uint16_t engine_speed = extractFromBoolVector(bits, 23);
+                            ImGui::Text("    %f", 0 + 0.25 * engine_speed);
                         }
+
+                        if (parts[2] == "10248040") {
+                            // Battery voltage
+                            std::vector<bool> bits = hexStringToBitArray(parts[4]);
+
+                            uint8_t voltage = extractFromBoolVectorInt(bits, 23);
+                            ImGui::Text("    %f V", 3 + 0.1 * voltage);
+                        }
+
+                        if (i == m_packet_provider.get_received_packets().size() - 1 &&
+                            m_state.packet_view_opts.auto_scroll) {
+                            ImGui::SetScrollHereY(1.0f);
+                        }
+
+                        // FIXME: Pause can cause listener thread to break
+                        ImGui::PopID();
                     }
-
-
-                    if (parts[2] == "102CA040") {
-                        // Engine information
-                        std::vector<bool> bits = hexStringToBitArray(parts[4]);
-
-                        // Engine information
-                        bool engineRunning = bits[14];
-                        ImGui::Text("    %d", engineRunning);
-
-                        uint16_t engine_speed = extractFromBoolVector(bits, 23);
-                        ImGui::Text("    %f", 0 + 0.25 * engine_speed);
-                    }
-
-                    if (parts[2] == "10248040") {
-                        // Battery voltage
-                        std::vector<bool> bits = hexStringToBitArray(parts[4]);
-
-                        uint8_t voltage = extractFromBoolVectorInt(bits, 23);
-                        ImGui::Text("    %f V", 3 + 0.1 * voltage);
-                    }
-
-                    if (i == m_packet_provider.get_received_packets().size() - 1 &&
-                        m_state.packet_view_opts.auto_scroll) {
-                        ImGui::SetScrollHereY(1.0f);
-                    }
-
-                    // FIXME: Pause can cause listener thread to break
                 }
-//                }
                 ImGui::EndTable();
             }
             ImGui::End();
@@ -712,7 +732,7 @@ namespace canary::gui {
         APP_CONFIG.ui_opts.open_dialogs.clear();
 
         // Ignore dialogs that are not open
-        for (const auto &open_dialog : m_state.open_dialogs) {
+        for (const auto &open_dialog: m_state.open_dialogs) {
             if (!open_dialog.second) continue;
             APP_CONFIG.ui_opts.open_dialogs[open_dialog.first] = open_dialog.second;
         }
