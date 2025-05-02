@@ -8,8 +8,6 @@
 #include <unordered_map>
 #include <map>
 
-#include "../main.hpp"
-
 #include "GLFW/glfw3.h"
 
 #include "imgui.h"

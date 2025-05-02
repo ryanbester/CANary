@@ -53,6 +53,7 @@ namespace canary {
     class dbcfile {
     public:
         std::unordered_map<long long, dbc_message> messages;
+        std::unordered_map<std::string, long long> can_id_map;
 
         std::optional<dbc_message> find_message(std::string can_id_hex);
     };

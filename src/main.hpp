@@ -4,9 +4,11 @@
 
 #define __CANARY_MAIN__
 
+#ifndef NO_GL
 #include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
+#endif
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -14,6 +16,10 @@
 #include <imgui_internal.h>
 
 #include <ImGuiFileDialog.h>
+
+#include <memory>
+
+#include "gui/gui.hpp"
 
 void set_paused(bool paused);
 
@@ -36,5 +42,7 @@ uint8_t extractFromBoolVectorInt(const std::vector<bool> &bitVector, size_t star
 uint16_t extractFromBoolVector(const std::vector<bool> &bitVector, size_t startIndex);
 
 uint16_t swap_endian_16(uint16_t value);
+
+std::shared_ptr<canary::gui::gui> get_gui();
 
 #endif

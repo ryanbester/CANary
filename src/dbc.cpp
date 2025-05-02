@@ -82,13 +82,18 @@ namespace canary {
     }
 
     std::optional<dbc_message> dbcfile::find_message(std::string can_id_hex) {
+        if (can_id_map.contains(can_id_hex)) {
+            auto can_id = can_id_map[can_id_hex];
+            if (can_id == 0) return std::nullopt;
+            return messages[can_id];
+        }
+
         for (const auto &[can_id, message]: messages) {
             // DBC file represents IDs as a decimal, convert here to a hex string
             std::stringstream stream;
             stream << std::hex << can_id;
             std::string dbc_can_id_hex(stream.str());
 
-            // TODO: Cache of found IDs
             // TODO: Use dbc_options_first_n variable
             // TODO: Skip first character for now, until offset implemented
             auto can_id_first_n = dbc_can_id_hex.substr(1, 4);
@@ -100,10 +105,12 @@ namespace canary {
                            ::toupper);
 
             if (can_id_first_n == to_find_first_n) {
+                can_id_map[can_id_hex] = can_id;
                 return message;
             }
         }
 
+        can_id_map[can_id_hex] = 0;
         return std::nullopt;
     }
 }

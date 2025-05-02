@@ -8,6 +8,9 @@
 #include "connmgr.hpp"
 #include "gsm.hpp"
 
+#define NO_GL
+#include "../main.hpp"
+
 #include <iostream>
 
 #if defined(WIN32)

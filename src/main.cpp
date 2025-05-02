@@ -11,11 +11,12 @@
 #include "main.hpp"
 #include "config.hpp"
 #include "dbc.hpp"
-#include "gui/gui.hpp"
 #include "can/packetprovider.hpp"
 #include "cmd/commanddispatcher.hpp"
 #include "cmd/helpcmd.hpp"
 #include "cmd/conncmd.hpp"
+#include "cmd/opencmd.hpp"
+#include "cmd/opendbccmd.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -46,6 +47,7 @@ std::mutex exit_status_mutex;
 std::condition_variable exit_status;
 
 canary::can::packetprovider provider;
+std::shared_ptr<canary::gui::gui> gui = nullptr;
 
 canary::socketcand *g_socketcand = nullptr;
 
@@ -312,6 +314,12 @@ void register_commands(canary::command::command_dispatcher &cmd_dispatcher) {
 
     auto conns = std::make_shared<canary::command::conn_cmd>();
     cmd_dispatcher.register_command(conns);
+
+    auto open = std::make_shared<canary::command::open_cmd>();
+    cmd_dispatcher.register_command(open);
+
+    auto open_dbc = std::make_shared<canary::command::open_dbc_cmd>();
+    cmd_dispatcher.register_command(open_dbc);
 }
 
 int main(int argc, char **argv) {
@@ -442,7 +450,6 @@ int main(int argc, char **argv) {
 
     std::cout << "Commands executed with code: " << res << std::endl;
 
-    std::shared_ptr<canary::gui::gui> gui = nullptr;
     if (!no_gui) {
         gui = std::make_shared<canary::gui::gui>(win, provider, cmd_dispatcher);
         gui->load_options();
@@ -508,4 +515,8 @@ int main(int argc, char **argv) {
     canary::config::config_loader::save_config();
 
     return 0;
+}
+
+std::shared_ptr<canary::gui::gui> get_gui() {
+    return gui;
 }
