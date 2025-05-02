@@ -7,6 +7,13 @@
 namespace canary::gui {
     connmgr_state connmgr::m_state;
 
+    const char *connmgr::can_types[] = {
+            "socketcand",
+            "test",
+            "direct",
+            "serial"
+    };
+
     void connmgr::show_conn_mgr(gui &gui) {
         if (state_at_or_init(gui.m_state.open_dialogs, std::string("connection_mgr"))) {
             ImGui::Begin("Connection Manager");
@@ -43,12 +50,18 @@ namespace canary::gui {
                 }
 
                 if (m_state.connection_mgr_selected_row > -1) {
-                    const canary::config::connection &sel_item = canary::config::config_loader::app_config.connections[m_state.connection_mgr_selected_row];
+                    const canary::config::connection &sel_item = APP_CONFIG.connections[m_state.connection_mgr_selected_row];
                     ImGui::Text("Params:");
 
                     for (const auto &[key, value]: sel_item.can_params) {
                         ImGui::Text("%s: %s", key.c_str(), value.dump().c_str());
                     }
+
+                    ImGui::Spacing();
+
+                    ImGui::Text("CANaryd Enabled: %s", sel_item.canaryd_enabled ? "true" : "false");
+                    ImGui::Text("CANaryd Host: %s", sel_item.canaryd_host.c_str());
+                    ImGui::Text("CANaryd Port: %d", sel_item.canaryd_port);
 
                     ImGui::SetCursorPos(cursor_pos);
 
@@ -103,9 +116,38 @@ namespace canary::gui {
             } else {
                 // Create
                 ImGui::Text("Add New");
+
+                ImGui::InputText("Name", m_state.name, IM_ARRAYSIZE(m_state.name));
+
+                ImGui::Combo("CAN Type", &m_state.can_type, can_types, sizeof(can_types ) / sizeof(can_types[0]));
+                // TODO: Params
+
+                ImGui::Checkbox("CANaryd Enabled", &m_state.canaryd_enabled);
+                ImGui::InputText("CANaryd Host", m_state.canaryd_host, IM_ARRAYSIZE(m_state.canaryd_host));
+                ImGui::InputInt("CANaryd Port", &m_state.canaryd_port);
             }
 
-            if (ImGui::Button("No")) {
+            if (ImGui::Button("Add")) {
+                std::stringstream cmd_text;
+                cmd_text << "conns add";
+                cmd_text << " -name " << m_state.name;
+                cmd_text << " -can_type " << can_types[m_state.can_type];
+                cmd_text << " -can_params " << "host=192.168.0.123,port=4568";
+                cmd_text << " -canaryd_enabled " << (m_state.canaryd_enabled ? "true" : "false");
+                cmd_text << " -canaryd_host " << m_state.canaryd_host;
+                cmd_text << " -canaryd_port " << m_state.canaryd_port;
+
+                // TODO: Better error handling
+                if (0 == gui.m_command_dispatcher.execute_command(cmd_text.str())) {
+                    ImGui::CloseCurrentPopup();
+                    gui.m_state.open_dialogs["conn_mgr_edit"] = false;
+                } else {
+                    // Error
+                }
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel")) {
                 ImGui::CloseCurrentPopup();
                 gui.m_state.open_dialogs["conn_mgr_edit"] = false;
             }

@@ -251,7 +251,6 @@ namespace canary {
         }
 
         auto init_msg = std::stringstream();
-
         init_msg << "< open " << m_interface << " >\n";
         send_when_ready(init_msg.str().c_str(), strlen(init_msg.str().c_str()));
 

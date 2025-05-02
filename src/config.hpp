@@ -20,9 +20,9 @@ namespace canary::config {
         std::string name;
         std::string can_type;
         std::map<std::string, nlohmann::json> can_params;
-        bool canaryd_enabled;
+        bool canaryd_enabled = false;
         std::string canaryd_host;
-        int canaryd_port;
+        int canaryd_port = -1;
     };
 
     struct connection_options {

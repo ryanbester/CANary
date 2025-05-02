@@ -15,6 +15,13 @@ namespace canary::gui {
     struct connmgr_state {
         std::unique_ptr<const canary::config::connection> current_connection;
         int connection_mgr_selected_row = -1;
+
+        char name[1024] = {0};
+        int can_type = 0;
+        std::unordered_map<std::string, std::string> can_params;
+        bool canaryd_enabled;
+        char canaryd_host[256];
+        int canaryd_port;
     };
 
     class connmgr {
@@ -24,6 +31,8 @@ namespace canary::gui {
         static void show_conn_mgr(gui &gui);
 
         static void show_conn_mgr_edit_dlg(gui &gui);
+    private:
+        static const char* can_types[];
     };
 
 }

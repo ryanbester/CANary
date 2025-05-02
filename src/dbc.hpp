@@ -34,7 +34,7 @@ namespace canary {
     };
 
     struct dbc_message {
-        long can_id;
+        long long can_id;
         std::string name;
         int length;
         std::string sender;
@@ -43,15 +43,15 @@ namespace canary {
 
         dbc_message() = default;
 
-        dbc_message(long canId, const std::string &name, int length, const std::string &sender) : can_id(canId),
-                                                                                                 name(name),
+        dbc_message(long long canId, std::string name, int length, std::string sender) : can_id(canId),
+                                                                                                 name(std::move(name)),
                                                                                                  length(length),
-                                                                                                 sender(sender) {};
+                                                                                                 sender(std::move(sender)) {};
     };
 
     class dbcfile {
     public:
-        std::unordered_map<long, dbc_message> messages;
+        std::unordered_map<long long, dbc_message> messages;
     };
 
     class dbcparser {

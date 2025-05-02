@@ -14,6 +14,10 @@ namespace canary::command {
         std::string cmd_name;
         std::vector<std::string> args;
         std::unordered_map<std::string, std::string> options;
+
+        const std::string &operator[](int arg_index) const {
+            return args[arg_index];
+        }
     };
 
     class command_line;

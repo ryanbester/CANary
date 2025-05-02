@@ -13,7 +13,7 @@ namespace canary {
         std::ifstream file(file_path);
 
         std::string line;
-        long last_message_id = 0;
+        long long last_message_id = 0;
         while (std::getline(file, line)) {
             if (line.starts_with("BO_")) { // Message
                 auto parts = split_string(line, " ");
@@ -25,9 +25,14 @@ namespace canary {
                 auto length = parts[3];
                 auto sender = parts[4];
 
-                dbc_message message = dbc_message(std::stol(can_id), name, std::stoi(length), sender);
-                dbc.messages.insert(std::make_pair(std::stol(can_id), message));
-                last_message_id = message.can_id;
+                try {
+                    dbc_message message = dbc_message(std::stoll(can_id), name, std::stoi(length), sender);
+                    dbc.messages.insert(std::make_pair(std::stoll(can_id), message));
+                    last_message_id = message.can_id;
+                } catch (const std::out_of_range &e) {
+                    std::cerr << "CAN ID out of range: " << can_id << " - " << e.what() << std::endl;
+                    continue;
+                }
 
                 // TODO: Some lines start with a space
             } else if (line.starts_with(" SG_")) { // Signal
@@ -62,9 +67,13 @@ namespace canary {
                         name, std::stoi(start), std::stoi(length), little_endian, is_signed,
                         std::stof(scale), std::stof(offset), std::stof(min), std::stof(max),
                         unit, receiver
-                        );
+                );
 
-                dbc.messages.at(last_message_id).signals.push_back(signal);
+                try {
+                    dbc.messages.at(last_message_id).signals.push_back(signal);
+                } catch (const std::out_of_range &e) {
+                    std::cerr << "Out of range " << e.what() << std::endl;
+                }
             }
         }
 

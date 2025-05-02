@@ -21,6 +21,8 @@ void error(const std::string &msg);
 
 std::vector<std::string> split_string(std::string s, const std::string &delimiter);
 
+void init_socket();
+
 void listen_for_packets();
 
 std::vector<bool> hexStringToBitArray(const std::string &hex);

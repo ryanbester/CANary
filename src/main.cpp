@@ -15,10 +15,12 @@
 #include "can/packetprovider.hpp"
 #include "cmd/commanddispatcher.hpp"
 #include "cmd/helpcmd.hpp"
+#include "cmd/conncmd.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include "socket.hpp"
+#include "conns.hpp"
 
 
 #if defined(WIN32)
@@ -97,10 +99,8 @@ std::vector<std::string> split_string(std::string s, const std::string &delimite
     return res;
 }
 
-canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
-
-void listen_for_packets() {
-    char buffer[1024] = {0};
+void init_socket() {
+    canary::socketcand socketcand(SOCKETCAND_IP, SOCKETCAND_PORT, SOCKETCAND_INTERFACE);
 
     socketcand.set_error_handler([](const std::string &msg) {
         std::cout << "Error: " << msg << std::endl;
@@ -113,6 +113,14 @@ void listen_for_packets() {
     }
 
     std::cout << "Connected to socketcand" << std::endl;
+
+//    std::thread listener_thread(listen_for_packets, socketcand);
+//    canary::connection conn{socketcand, canary::can::packetprovider{}, listener_thread};
+}
+
+
+void listen_for_packets(canary::socketcand socketcand) {
+    char buffer[1024] = {0};
 
     is_running = true;
     int i = 0;
@@ -270,6 +278,9 @@ uint16_t extractFromBoolVector(const std::vector<bool> &bitVector, size_t startI
 void register_commands(canary::command::command_dispatcher &cmd_dispatcher) {
     auto help = std::make_shared<canary::command::help_cmd>(cmd_dispatcher);
     cmd_dispatcher.register_command(help);
+
+    auto conns = std::make_shared<canary::command::conn_cmd>();
+    cmd_dispatcher.register_command(conns);
 }
 
 int main(int argc, char **argv) {
@@ -323,10 +334,33 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    std::thread listener_thread(listen_for_packets);
+    std::thread listener_thread(init_socket);
 
-    if (!glfwInit())
-        return 1;
+//    char buffer[1024] = {0};
+//    canary::socket socket("192.168.0.192", 12345);
+//    socket.set_error_handler([](const std::string &msg) {
+//        std::cout << "Error: " << msg << std::endl;
+//    });
+//
+//    int connect_res = socket.connect();
+//    if (connect_res != 0) {
+//        std::cout << "Error connecting to socket" << std::endl;
+//        return 1;
+//    }
+//
+//    std::cout << "Connected to socket" << std::endl;
+//
+//    const char *buf = "AT\n";
+//    socket.send(buf, strlen(buf));
+//
+//    socket.recv(buffer, sizeof(buffer));
+//    std::cout << "Received: " << buffer << std::endl;
+
+    GLFWwindow *win;
+
+    if (!no_gui) {
+        if (!glfwInit())
+            return 1;
 
         glfwWindowHint(GLFW_SAMPLES, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -407,8 +441,13 @@ int main(int argc, char **argv) {
     }
 
     // Force close if still in connection phase
-    if (!socketcand.m_connected) {
-        socketcand.close();
+//    if (!socketcand.m_connected) {
+//        socketcand.close();
+//    }
+    for (auto &conn: canary::conns::connections) {
+        if (conn.m_socket.m_connected) {
+            conn.m_socket.close();
+        }
     }
 
     if (is_running) {

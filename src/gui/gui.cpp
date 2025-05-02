@@ -6,6 +6,7 @@
 
 #include "cmdline.hpp"
 #include "connmgr.hpp"
+#include "gsm.hpp"
 
 #include <iostream>
 
@@ -151,6 +152,8 @@ namespace canary::gui {
         show_tools();
 
         cmdline::show_command_line(*this);
+
+        gsm::show_gsm_window(*this);
 
         m_first_loop = false;
     }
