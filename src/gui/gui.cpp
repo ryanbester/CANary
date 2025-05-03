@@ -9,6 +9,7 @@
 #include "gsm.hpp"
 
 #define NO_GL
+
 #include "../main.hpp"
 
 #include <iostream>
@@ -338,6 +339,8 @@ namespace canary::gui {
             // FILTERING
             std::vector<int> filtered_indices;
             const auto &packets = m_packet_provider.get_received_packets();
+            int i_not_excluded = 0;
+            int match_index = -1;
 
             for (int i = 0; i < static_cast<int>(packets.size()); ++i) {
                 const auto &packet = packets[i];
@@ -360,8 +363,16 @@ namespace canary::gui {
                     }
                 }
 
+                if (m_state.packet_view_opts.jump &&
+                    contains_case_insensitive(parts[2], m_state.packet_view_opts.jump_text) &&
+                    match_index == -1) {
+                    match_index = i_not_excluded;
+                }
+
                 filtered_indices.push_back(i); // only store index if valid
+                i_not_excluded++;
             }
+
 
             ImGui::Checkbox("Auto scroll", &m_state.packet_view_opts.auto_scroll);
             if (ImGui::Checkbox("Pause", &m_state.packet_view_opts.paused)) {
@@ -379,6 +390,14 @@ namespace canary::gui {
                 replay_packets(packets_to_replay);
             }
 
+            ImGui::SameLine();
+            ImGui::InputText("Packet Name", m_state.packet_view_opts.jump_text,
+                             IM_ARRAYSIZE(m_state.packet_view_opts.jump_text));
+            ImGui::SameLine();
+            if (ImGui::Button("Jump")) {
+                m_state.packet_view_opts.jump = true;
+            }
+
             // TABLE
             if (ImGui::BeginTable("PacketTable", 5,
                                   ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
@@ -393,6 +412,14 @@ namespace canary::gui {
 
                 ImGuiListClipper clipper;
                 clipper.Begin(static_cast<int>(filtered_indices.size()));
+
+                if (match_index >= 0) {
+                    // Set rough scroll
+                    int lines = m_state.dbc_file.messages.empty() ? 1 : 5;
+                    ImGui::SetScrollFromPosY(ImGui::GetCursorStartPos().y +
+                                             (lines * match_index * ImGui::GetTextLineHeightWithSpacing()));
+                    m_state.packet_view_opts.jump = false;
+                }
 
 //                std::lock_guard<std::mutex> lock(packets_mutex);
 
@@ -417,6 +444,11 @@ namespace canary::gui {
 //                    ImGui::Text("%s", parts[4].c_str());
 
                         auto &selected = m_state.packet_view_opts.selected;
+
+                        if (match_index == i) {
+                            ImGui::SetScrollHereY(0.0f);
+                            m_state.packet_view_opts.selected.set(match_index);
+                        }
 
                         bool is_selected = selected.contains(i);
                         if (ImGui::Selectable(parts[4].c_str(), is_selected, ImGuiSelectableFlags_SpanAllColumns)) {
@@ -801,7 +833,8 @@ namespace canary::gui {
                 }
 
                 if (excluded) {
-                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s: %d %s", can_id_hex.c_str(), count, message_name.c_str());
+                    ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "%s: %d %s", can_id_hex.c_str(), count,
+                                       message_name.c_str());
                 } else {
                     ImGui::Text("%s: %d %s", can_id_hex.c_str(), count, message_name.c_str());
                 }
@@ -809,5 +842,19 @@ namespace canary::gui {
 
             ImGui::End();
         }
+    }
+
+    bool gui::contains_case_insensitive(const std::string &haystack, const char *needle) {
+        std::string haystack_lower(haystack);
+        std::string needle_lower(needle);
+
+        // Convert both to lowercase
+        std::transform(haystack_lower.begin(), haystack_lower.end(), haystack_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        std::transform(needle_lower.begin(), needle_lower.end(), needle_lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+
+        return haystack_lower.find(needle_lower) != std::string::npos;
     }
 }

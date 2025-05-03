@@ -70,6 +70,8 @@ namespace canary::gui {
         int selected_row;
         selected_range selected;
         std::pair<dbc_message, std::string> selected_frame;
+        char jump_text[1024] = {0};
+        bool jump = false;
     };
 
     struct dbc_options {
@@ -149,6 +151,8 @@ namespace canary::gui {
         void show_tools();
 
         void show_frame_frequency();
+
+        bool contains_case_insensitive(const std::string& haystack, const char *needle);
     };
 
 }
